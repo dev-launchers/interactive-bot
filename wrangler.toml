@@ -1,7 +1,11 @@
-name = "rust"
+name = "lottery-bot"
 type = "rust"
 
-account_id = ""
-workers_dev = true
-route = ""
-zone_id = ""
+account_id = "b0eb1f5510cb71344976cb9cac51e2af"
+zone_id = "976b2978bfb8a506026238d437fe0555"
+workers_dev = false
+route = "slack-lottery-bot.devlaunchers.com/events"
+
+kv-namespaces = [
+    { binding = "LOTTERY_BOT_CONFIG", id = "f04f09cbc3b64fdcbc4e4aa812c7e4b4" },
+]
