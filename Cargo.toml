@@ -12,12 +12,24 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 cfg-if = "0.1.2"
-reqwest = { version = "0.10.4", features = ["json"] }
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4.5"
 serde = "1.0.94"
 serde_derive = "1.0.94"
 serde_json = ""
+web-sys = { version = "0.3.4", features = [
+  'Headers',
+  'Request',
+  'RequestInit',
+  'RequestMode',
+  'Response',
+  'Window',
+  'WorkerGlobalScope',
+  'ServiceWorkerGlobalScope',
+  'FormData',
+  'console',
+]}
+
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
