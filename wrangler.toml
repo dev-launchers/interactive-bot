@@ -8,4 +8,5 @@ route = "slack-lottery-bot.devlaunchers.com/events"
 
 kv-namespaces = [
     { binding = "LOTTERY_BOT_CONFIG", id = "f04f09cbc3b64fdcbc4e4aa812c7e4b4" },
+    { binding = "SLACK_BRIDGE", id = "6229394ef4e54e639e124441830cb64e" },
 ]

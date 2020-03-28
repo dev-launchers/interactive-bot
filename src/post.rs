@@ -20,28 +20,16 @@ where
 {
     let mut opts = web_sys::RequestInit::new();
     opts.method("POST");
-    let body = JsValue::from_serde(&req.body)?;
+    // Equivalent to JSON.stringify in JS
+    let body = JsValue::from_str(&serde_json::to_string(&req.body)?);
     opts.body(Some(&body));
 
     let request = web_sys::Request::new_with_str_and_init(&req.url, &opts)?;
-    /*
-          warning: unused `std::iter::Map` that must be used
-      --> src/post.rs:26:5
-       |
-    26 | /     req.headers
-    27 | |         .iter()
-    28 | |         .map(|(k, v)| request.headers().set(k, v).unwrap());
-       | |____________________________________________________________^
-       |
-       = note: `#[warn(unused_must_use)]` on by default
-       = note: iterators are lazy and do nothing unless consumed
-
-    */
     for (k, v) in req.headers.iter() {
         request.headers().set(k, v)?;
     }
 
-    let window = web_sys::window().ok_or(PostError::NoWindow)?;
+    let window = worker_global_scope().ok_or(PostError::NoWindow)?;
 
     // `resp_value` is a JS `Response` object.
     let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -54,6 +42,13 @@ where
     let response: PostMessageResp = json.into_serde()?;
 
     Ok(response)
+}
+
+// Returns global execution context of a service worker
+fn worker_global_scope() -> Option<web_sys::ServiceWorkerGlobalScope> {
+    js_sys::global()
+        .dyn_into::<web_sys::ServiceWorkerGlobalScope>()
+        .ok()
 }
 
 #[derive(Debug)]

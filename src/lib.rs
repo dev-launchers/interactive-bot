@@ -6,10 +6,13 @@ extern crate wasm_bindgen_futures;
 
 mod post;
 mod slack;
+#[macro_use]
 mod utils;
 
 use cfg_if::cfg_if;
+use uuid::Uuid;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsValue;
 
 // similar to the if/elif C preprocessor macro
 cfg_if! {
@@ -47,19 +50,8 @@ Sample MessageEvent
 */
 #[derive(Deserialize, Debug)]
 pub struct MessageEvent {
-    /*
-    error: expected identifier, found keyword `type`
-      --> src/lib.rs:50:5
-       |
-    50 |     type: String,
-       |     ^^^^ expected identifier, found keyword
-       |
-    help: you can escape reserved keywords to use them as identifiers
-       |
-    50 |     r#type: String,
-       |     ^^^^^^
-    */
-    r#type: String,
+    #[serde(rename(deserialize = "type"))]
+    ty: String,
     channel: String,
     user: String,
     text: String,
@@ -86,7 +78,8 @@ pub async fn lottery(body: JsValue, token: JsValue) -> Result<JsValue, JsValue> 
     // Issue: If I don't annotate the type of event, compiler returns, I got this run time error
     // invalid type: map, expected unit at line 1 column 0
     console_log!("event is {:?}", event);
-    let resp = slack::post_message(token.as_string().unwrap()).await?;
+    let resp = slack::post_message(event.channel, token.as_string().unwrap()).await?;
+    console_log!("resp {:?}", resp);
     if resp.ok {
         return Ok(JsValue::TRUE);
     }
@@ -94,4 +87,10 @@ pub async fn lottery(body: JsValue, token: JsValue) -> Result<JsValue, JsValue> 
         Some(e) => Err(JsValue::from_str(&e.to_string())),
         None => Err(JsValue::from_str("Slack didn't return failure reason")),
     }
+}
+
+// Expose a function to JS that generates v4 UUID
+#[wasm_bindgen]
+pub fn uuid() -> String {
+    Uuid::new_v4().to_string()
 }

@@ -43,28 +43,23 @@ struct PostMessageBody {
     as_user: Option<bool>,
 }
 
-/*
-{
-    "ok": true,
-    "channel": "C1H9RESGL",
-    "ts": "1503435956.000247",
-}
-*/
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PostMessageResp {
     pub ok: bool,
     pub error: Option<String>,
-    ts: Option<String>,
+    #[serde(rename(deserialize = "ts"))]
+    timestamp: Option<String>,
 }
 
-pub async fn post_message(token: String) -> Result<PostMessageResp, PostError> {
+pub async fn post_message(channel: String, token: String) -> Result<PostMessageResp, PostError> {
     let mut headers = HashMap::new();
     headers.insert("Authorization".to_string(), format!("Bearer {}", token));
+    headers.insert("Content-type".to_string(), "application/json".to_string());
     let req = Request {
-        url: "https://api.slack.com/methods/chat.postMessage".to_string(),
+        url: "https://slack.com/api/chat.postMessage".to_string(),
         headers: headers,
         body: PostMessageBody {
-            channel: "CNHFQSXA7".to_string(),
+            channel: channel,
             text: "Hello, I'm lottery bot".to_string(),
             as_user: None,
         },
