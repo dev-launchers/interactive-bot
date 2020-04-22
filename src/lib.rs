@@ -4,15 +4,16 @@ extern crate serde_derive;
 extern crate wasm_bindgen;
 extern crate wasm_bindgen_futures;
 
+mod calendar;
 mod post;
 mod route;
 mod slack;
 #[macro_use]
 mod utils;
 
+use calendar::{calendar_end, calendar_start};
 use cfg_if::cfg_if;
 use route::Route;
-use slack::PostMessageResp;
 use url::Url;
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
@@ -67,16 +68,8 @@ pub struct MessageEvent {
     timestamp: String,
 }
 
-// https://api.slack.com/methods/chat.postMessage
-#[derive(Serialize, Debug)]
-struct PostMessageBody {
-    channel: String,
-    text: String,
-    as_user: Option<bool>,
-}
-
 #[derive(Deserialize, Debug)]
-struct BotConfig {
+pub struct BotConfig {
     token: String,
     announcement_channel: String,
 }
@@ -97,24 +90,6 @@ pub async fn interactive_bot(req: JsValue, bot_config: JsValue) -> Result<JsValu
         Route::Unhandled => Err(unhandled(path)),
     }?;
     Ok(JsValue::TRUE)
-}
-
-async fn calendar_start(req: Request, bot_config: BotConfig) -> Result<(), JsValue> {
-    let body = JsFuture::from(req.json()?).await?;
-    let resp = slack::post_message(
-        "Emoji lottery begins".to_string(),
-        bot_config.announcement_channel,
-        bot_config.token,
-    )
-    .await?;
-    match resp {
-        PostMessageResp::Ok(_) => Ok(()),
-        PostMessageResp::Err(e) => Err(JsValue::from_str(&e.error)),
-    }
-}
-
-async fn calendar_end(req: Request) -> Result<(), JsValue> {
-    Ok(())
 }
 
 async fn events(req: Request) -> Result<(), JsValue> {
