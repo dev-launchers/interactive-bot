@@ -5,14 +5,20 @@ extern crate wasm_bindgen;
 extern crate wasm_bindgen_futures;
 
 mod post;
+mod route;
 mod slack;
 #[macro_use]
 mod utils;
 
 use cfg_if::cfg_if;
+use route::Route;
+use slack::PostMessageResp;
+use url::Url;
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::Request;
 
 // similar to the if/elif C preprocessor macro
 cfg_if! {
@@ -69,24 +75,56 @@ struct PostMessageBody {
     as_user: Option<bool>,
 }
 
+#[derive(Deserialize, Debug)]
+struct BotConfig {
+    token: String,
+    announcement_channel: String,
+}
+
 #[wasm_bindgen]
-pub async fn lottery(body: JsValue, token: JsValue) -> Result<JsValue, JsValue> {
-    // JsValue.into_serde invokes JSON.stringify on this value and then parses the
-    // resulting JSON into an arbitrary Rust value.
-    // Using this API requires activating the serde-serialize feature of the wasm-bindgen crate.
+pub async fn interactive_bot(req: JsValue, bot_config: JsValue) -> Result<JsValue, JsValue> {
+    let bot_config: BotConfig = bot_config.into_serde().map_err(|e| e.to_string())?;
+
+    let req = Request::from(req);
+    let url_str = req.url();
+    let url = Url::parse(&url_str).map_err(|_| format!("{:?} is not a valid url", url_str))?;
+
+    let path = url.path();
+    match Route::from(path) {
+        Route::CalendarStart => calendar_start(req, bot_config).await,
+        Route::CalendarEnd => calendar_end(req).await,
+        Route::Events => events(req).await,
+        Route::Unhandled => Err(unhandled(path)),
+    }?;
+    Ok(JsValue::TRUE)
+}
+
+async fn calendar_start(req: Request, bot_config: BotConfig) -> Result<(), JsValue> {
+    let body = JsFuture::from(req.json()?).await?;
+    let resp = slack::post_message(
+        "Emoji lottery begins".to_string(),
+        bot_config.announcement_channel,
+        bot_config.token,
+    )
+    .await?;
+    match resp {
+        PostMessageResp::Ok(_) => Ok(()),
+        PostMessageResp::Err(e) => Err(JsValue::from_str(&e.error)),
+    }
+}
+
+async fn calendar_end(req: Request) -> Result<(), JsValue> {
+    Ok(())
+}
+
+async fn events(req: Request) -> Result<(), JsValue> {
+    let body = JsFuture::from(req.json()?).await?;
+    // Using into_serde API requires activating the serde-serialize feature of the wasm-bindgen crate.
     let event: MessageEvent = body.into_serde().map_err(|e| e.to_string())?;
-    // Issue: If I don't annotate the type of event, compiler returns, I got this run time error
-    // invalid type: map, expected unit at line 1 column 0
-    console_log!("event is {:?}", event);
-    let resp = slack::post_message(event.channel, token.as_string().unwrap()).await?;
-    console_log!("resp {:?}", resp);
-    if resp.ok {
-        return Ok(JsValue::TRUE);
-    }
-    match resp.error {
-        Some(e) => Err(JsValue::from_str(&e.to_string())),
-        None => Err(JsValue::from_str("Slack didn't return failure reason")),
-    }
+    Ok(())
+}
+fn unhandled(path: &str) -> JsValue {
+    JsValue::from_str(&format!("No handler defined for route {:?}", path))
 }
 
 // Expose a function to JS that generates v4 UUID

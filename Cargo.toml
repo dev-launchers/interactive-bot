@@ -18,6 +18,7 @@ wasm-bindgen-futures = "0.4.5"
 serde = "1.0.94"
 serde_derive = "1.0.94"
 serde_json = ""
+url = "2.1.1"
 # wasm-bindgen - enables support for OsRng on wasm32-unknown-unknown via wasm-bindgen
 # see https://docs.rs/uuid/0.8.1/uuid/
 uuid = { version = "0.8.1", features = ["v4", "wasm-bindgen"] }

@@ -7,28 +7,35 @@ addEventListener('fetch', event => {
  * @param {Request} request
  */
 async function handleRequest(request) {
-  const { lottery, uuid } = wasm_bindgen;
+  const { interactive_bot, uuid } = wasm_bindgen;
   await wasm_bindgen(wasm)
-  const botToken = await LOTTERY_BOT_CONFIG.get("token");
-  const body = await request.json()
-    .then(data => {
-      return data;
-    });
+  const token = await LOTTERY_BOT_CONFIG.get("token");
+  const announcementChannel = await LOTTERY_BOT_CONFIG.get("announcementChannel");
 
-  const lotterResult = await lottery(body, botToken)
+  const botConfig = {
+    token: token,
+    announcement_channel: announcementChannel,
+  };
+
+  const result = await interactive_bot(request, botConfig)
     .then(result => {
-      return result
+      return new Response("Success", {
+        "status": 200,
+        "statusText": "OK",
+        "headers": { 'Content-Type': 'text/plain' }
+      })
     })
     .catch(async function (err) {
       const sentryId = uuid();
       await sentryLog(err, sentryId);
+      return new Response(err, {
+        "status": 500,
+        "statusText": "Internal Server Error",
+        "headers": { 'Content-Type': 'text/plain' }
+      })
     })
 
-  return new Response("Hello, inquisitor", {
-    "status": 200,
-    "statusText": "OK",
-    "headers": { 'Content-Type': 'text/plain' }
-  })
+  return result
 }
 
 async function sentryLog(err, id) {

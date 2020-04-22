@@ -1,5 +1,6 @@
 use super::post::{post, PostError, Request};
 use std::collections::HashMap;
+use wasm_bindgen_futures::JsFuture;
 /*
 https://api.slack.com/events/message
 Sample MessageEvent
@@ -40,18 +41,34 @@ pub struct MessageEvent {
 struct PostMessageBody {
     channel: String,
     text: String,
-    as_user: Option<bool>,
+    // as_user: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PostMessageResp {
-    pub ok: bool,
-    pub error: Option<String>,
-    #[serde(rename(deserialize = "ts"))]
-    timestamp: Option<String>,
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PostMessageResp {
+    Ok(PostMessageOk),
+    Err(PostMessageError),
 }
 
-pub async fn post_message(channel: String, token: String) -> Result<PostMessageResp, PostError> {
+#[derive(Debug, Deserialize)]
+pub struct PostMessageOk {
+    ok: bool,
+    channel: String,
+    ts: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PostMessageError {
+    ok: bool,
+    pub error: String,
+}
+
+pub async fn post_message(
+    message: String,
+    channel: String,
+    token: String,
+) -> Result<PostMessageResp, PostError> {
     let mut headers = HashMap::new();
     headers.insert("Authorization".to_string(), format!("Bearer {}", token));
     headers.insert("Content-type".to_string(), "application/json".to_string());
@@ -60,10 +77,16 @@ pub async fn post_message(channel: String, token: String) -> Result<PostMessageR
         headers: headers,
         body: PostMessageBody {
             channel: channel,
-            text: "Hello, I'm lottery bot".to_string(),
-            as_user: None,
+            text: message,
+            //as_user: None,
         },
     };
-    let resp = post(req).await?;
+    let js_resp = post(req).await?;
+
+    // Convert this Promise into a rust Future.
+    let json = JsFuture::from(js_resp.json()?).await?;
+
+    let resp: PostMessageResp = json.into_serde()?;
+
     Ok(resp)
 }

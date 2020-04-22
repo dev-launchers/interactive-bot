@@ -1,9 +1,8 @@
-use super::slack::PostMessageResp;
 use serde::Serialize;
 use std::collections::HashMap;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
-use web_sys;
+use web_sys::{RequestInit, Response};
 
 pub struct Request<T: ?Sized>
 where
@@ -14,11 +13,11 @@ where
     pub body: T,
 }
 
-pub async fn post<T>(req: Request<T>) -> Result<PostMessageResp, PostError>
+pub async fn post<T>(req: Request<T>) -> Result<Response, PostError>
 where
     T: Serialize,
 {
-    let mut opts = web_sys::RequestInit::new();
+    let mut opts = RequestInit::new();
     opts.method("POST");
     // Equivalent to JSON.stringify in JS
     let body = JsValue::from_str(&serde_json::to_string(&req.body)?);
@@ -34,14 +33,8 @@ where
     // `resp_value` is a JS `Response` object.
     let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
 
-    let resp: web_sys::Response = resp_value.dyn_into()?;
-
-    // Convert this other Promise into a rust Future.
-    let json = JsFuture::from(resp.json()?).await?;
-
-    let response: PostMessageResp = json.into_serde()?;
-
-    Ok(response)
+    let resp: Response = resp_value.dyn_into()?;
+    Ok(resp)
 }
 
 // Returns global execution context of a service worker
