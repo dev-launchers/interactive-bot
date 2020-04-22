@@ -41,7 +41,6 @@ pub struct MessageEvent {
 struct PostMessageBody {
     channel: String,
     text: String,
-    // as_user: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,7 +77,6 @@ pub async fn post_message(
         body: PostMessageBody {
             channel: channel,
             text: message,
-            //as_user: None,
         },
     };
     let js_resp = post(req).await?;
