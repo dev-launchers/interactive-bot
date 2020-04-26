@@ -5,6 +5,7 @@ extern crate wasm_bindgen;
 extern crate wasm_bindgen_futures;
 
 mod calendar;
+mod discord;
 mod post;
 mod route;
 mod slack;
@@ -13,6 +14,7 @@ mod utils;
 
 use calendar::{calendar_end, calendar_start};
 use cfg_if::cfg_if;
+use discord::{checkLastSubmission, submit};
 use route::Route;
 use url::Url;
 use uuid::Uuid;
@@ -70,6 +72,19 @@ pub struct MessageEvent {
 
 #[derive(Deserialize, Debug)]
 pub struct BotConfig {
+    discord: DiscordConfig,
+    slack: SlackConfig,
+}
+
+#[derive(Deserialize, Debug)]
+struct DiscordConfig {
+    // Shared secret to verify requests are from our discord-gateway
+    gateway_token: String,
+    announcement_channel: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct SlackConfig {
     token: String,
     announcement_channel: String,
 }
@@ -82,12 +97,13 @@ pub async fn interactive_bot(req: JsValue, bot_config: JsValue) -> Result<JsValu
     let url_str = req.url();
     let url = Url::parse(&url_str).map_err(|_| format!("{:?} is not a valid url", url_str))?;
 
-    let path = url.path();
-    match Route::from(path) {
+    match Route::from(&url) {
         Route::CalendarStart => calendar_start(req, bot_config).await,
         Route::CalendarEnd => calendar_end(req).await,
         Route::Events => events(req).await,
-        Route::Unhandled => Err(unhandled(path)),
+        Route::Submit => submit(req).await,
+        Route::CheckLastSubmission => checkLastSubmission(req).await,
+        Route::Unhandled => Err(unhandled(&url)),
     }?;
     Ok(JsValue::TRUE)
 }
@@ -98,8 +114,8 @@ async fn events(req: Request) -> Result<(), JsValue> {
     let event: MessageEvent = body.into_serde().map_err(|e| e.to_string())?;
     Ok(())
 }
-fn unhandled(path: &str) -> JsValue {
-    JsValue::from_str(&format!("No handler defined for route {:?}", path))
+fn unhandled(url: &Url) -> JsValue {
+    JsValue::from_str(&format!("No handler defined for route {:?}", url.path()))
 }
 
 // Expose a function to JS that generates v4 UUID

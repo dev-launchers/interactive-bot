@@ -20,8 +20,8 @@ pub async fn calendar_start(req: Request, bot_config: BotConfig) -> Result<(), J
     })?;
     let resp = slack::post_message(
         format!("{} commence", event.calendar_name),
-        bot_config.announcement_channel,
-        bot_config.token,
+        bot_config.slack.announcement_channel,
+        bot_config.slack.token,
     )
     .await?;
     match resp {

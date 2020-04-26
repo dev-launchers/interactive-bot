@@ -9,12 +9,20 @@ addEventListener('fetch', event => {
 async function handleRequest(request) {
   const { interactive_bot, uuid } = wasm_bindgen;
   await wasm_bindgen(wasm)
-  const token = await LOTTERY_BOT_CONFIG.get("token");
-  const announcementChannel = await LOTTERY_BOT_CONFIG.get("announcementChannel");
+  const discordGatewayToken = await LOTTERY_BOT_CONFIG.get("discordGatewayToken");
+  const discordAnnouncementChannel = await LOTTERY_BOT_CONFIG.get("discordAnnouncementChannel");
+  const slackToken = await LOTTERY_BOT_CONFIG.get("slackToken");
+  const slackAnnouncementChannel = await LOTTERY_BOT_CONFIG.get("slackAnnouncementChannel");
 
   const botConfig = {
-    token: token,
-    announcement_channel: announcementChannel,
+    discord: {
+      announcement_channel: discordAnnouncementChannel,
+      gateway_token: discordGatewayToken,
+    },
+    slack: {
+      token: slackToken,
+      announcement_channel: slackAnnouncementChannel,
+    },
   };
 
   const result = await interactive_bot(request, botConfig)
