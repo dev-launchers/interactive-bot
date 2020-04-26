@@ -12,10 +12,11 @@ mod slack;
 #[macro_use]
 mod utils;
 
-use calendar::{calendar_end, calendar_start};
+use calendar::{calendar_end, calendar_start, notifyTo};
 use cfg_if::cfg_if;
-use discord::{checkLastSubmission, submit};
+use discord::{checkLastSubmission, submit, DiscordConfig};
 use route::Route;
+use slack::SlackConfig;
 use url::Url;
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
@@ -76,19 +77,6 @@ pub struct BotConfig {
     slack: SlackConfig,
 }
 
-#[derive(Deserialize, Debug)]
-struct DiscordConfig {
-    // Shared secret to verify requests are from our discord-gateway
-    gateway_token: String,
-    announcement_channel: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct SlackConfig {
-    token: String,
-    announcement_channel: String,
-}
-
 #[wasm_bindgen]
 pub async fn interactive_bot(req: JsValue, bot_config: JsValue) -> Result<JsValue, JsValue> {
     let bot_config: BotConfig = bot_config.into_serde().map_err(|e| e.to_string())?;
@@ -98,7 +86,7 @@ pub async fn interactive_bot(req: JsValue, bot_config: JsValue) -> Result<JsValu
     let url = Url::parse(&url_str).map_err(|_| format!("{:?} is not a valid url", url_str))?;
 
     match Route::from(&url) {
-        Route::CalendarStart => calendar_start(req, bot_config).await,
+        Route::CalendarStart => calendar_start(req, bot_config, notifyTo::Discord).await,
         Route::CalendarEnd => calendar_end(req).await,
         Route::Events => events(req).await,
         Route::Submit => submit(req).await,

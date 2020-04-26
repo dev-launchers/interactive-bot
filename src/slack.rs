@@ -1,6 +1,13 @@
 use super::post::{post, PostError, Request};
 use std::collections::HashMap;
 use wasm_bindgen_futures::JsFuture;
+
+#[derive(Deserialize, Debug)]
+pub struct SlackConfig {
+    token: String,
+    announcement_channel: String,
+}
+
 /*
 https://api.slack.com/events/message
 Sample MessageEvent
@@ -63,28 +70,37 @@ pub struct PostMessageError {
     pub error: String,
 }
 
-pub async fn post_message(
-    message: String,
-    channel: String,
-    token: String,
-) -> Result<PostMessageResp, PostError> {
-    let mut headers = HashMap::new();
-    headers.insert("Authorization".to_string(), format!("Bearer {}", token));
-    headers.insert("Content-type".to_string(), "application/json".to_string());
-    let req = Request {
-        url: "https://slack.com/api/chat.postMessage".to_string(),
-        headers: headers,
-        body: PostMessageBody {
-            channel: channel,
-            text: message,
-        },
-    };
-    let js_resp = post(req).await?;
+pub struct SlackClient {
+    config: SlackConfig,
+}
 
-    // Convert this Promise into a rust Future.
-    let json = JsFuture::from(js_resp.json()?).await?;
+pub fn new_slack_client(config: SlackConfig) -> SlackClient {
+    return SlackClient { config };
+}
 
-    let resp: PostMessageResp = json.into_serde()?;
+impl SlackClient {
+    pub async fn post_message(&self, message: String) -> Result<PostMessageResp, PostError> {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Authorization".to_string(),
+            format!("Bearer {}", self.config.token),
+        );
+        headers.insert("Content-type".to_string(), "application/json".to_string());
+        let req = Request {
+            url: "https://slack.com/api/chat.postMessage".to_string(),
+            headers: headers,
+            body: PostMessageBody {
+                channel: self.config.announcement_channel.clone(),
+                text: message,
+            },
+        };
+        let js_resp = post(req).await?;
 
-    Ok(resp)
+        // Convert this Promise into a rust Future.
+        let json = JsFuture::from(js_resp.json()?).await?;
+
+        let resp: PostMessageResp = json.into_serde()?;
+
+        Ok(resp)
+    }
 }

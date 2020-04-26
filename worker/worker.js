@@ -10,13 +10,13 @@ async function handleRequest(request) {
   const { interactive_bot, uuid } = wasm_bindgen;
   await wasm_bindgen(wasm)
   const discordGatewayToken = await LOTTERY_BOT_CONFIG.get("discordGatewayToken");
-  const discordAnnouncementChannel = await LOTTERY_BOT_CONFIG.get("discordAnnouncementChannel");
+  const discordWebhookUrl = await LOTTERY_BOT_CONFIG.get("discordWebhookUrl");
   const slackToken = await LOTTERY_BOT_CONFIG.get("slackToken");
   const slackAnnouncementChannel = await LOTTERY_BOT_CONFIG.get("slackAnnouncementChannel");
 
   const botConfig = {
     discord: {
-      announcement_channel: discordAnnouncementChannel,
+      webhook_url: discordWebhookUrl,
       gateway_token: discordGatewayToken,
     },
     slack: {
