@@ -1,4 +1,4 @@
-use super::post::{post, PostError, Request};
+use super::http::{send, Method, PostError, Request};
 use std::collections::HashMap;
 use wasm_bindgen_futures::JsFuture;
 
@@ -88,13 +88,14 @@ impl SlackClient {
         headers.insert("Content-type".to_string(), "application/json".to_string());
         let req = Request {
             url: "https://slack.com/api/chat.postMessage".to_string(),
+            method: Method::POST,
             headers: headers,
             body: PostMessageBody {
                 channel: self.config.announcement_channel.clone(),
                 text: message,
             },
         };
-        let js_resp = post(req).await?;
+        let js_resp = send(req).await?;
 
         // Convert this Promise into a rust Future.
         let json = JsFuture::from(js_resp.json()?).await?;

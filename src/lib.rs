@@ -6,8 +6,8 @@ extern crate wasm_bindgen_futures;
 
 mod calendar;
 mod discord;
+mod http;
 mod kv;
-mod post;
 mod route;
 mod slack;
 #[macro_use]

@@ -1,5 +1,5 @@
+use super::http::{send, Method, PostError, Request};
 use super::kv::{Guess, KVClient, WriteResponse};
-use super::post::{post, PostError, Request};
 use super::BotConfig;
 
 use std::collections::HashMap;
@@ -78,11 +78,12 @@ impl WebhookClient {
         headers.insert("Content-type".to_string(), "application/json".to_string());
         let req = Request {
             url: self.url.clone(),
+            method: Method::POST,
             headers: headers,
             body: WebhookBody { content: message },
         };
         // webhook doesn't return a response https://discordapp.com/developers/docs/resources/webhook#execute-webhook
-        post(req).await?;
+        send(req).await?;
         Ok(())
     }
 }

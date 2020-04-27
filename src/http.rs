@@ -9,16 +9,31 @@ where
     T: Serialize,
 {
     pub url: String,
+    pub method: Method,
     pub headers: HashMap<String, String>,
     pub body: T,
 }
 
-pub async fn post<T>(req: Request<T>) -> Result<Response, PostError>
+pub enum Method {
+    POST,
+    PUT,
+}
+
+impl Method {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Method::POST => "POST",
+            Method::PUT => "PUT",
+        }
+    }
+}
+
+pub async fn send<T>(req: Request<T>) -> Result<Response, PostError>
 where
     T: Serialize,
 {
     let mut opts = RequestInit::new();
-    opts.method("POST");
+    opts.method(req.method.as_str());
     // Equivalent to JSON.stringify in JS
     let body = JsValue::from_str(&serde_json::to_string(&req.body)?);
     opts.body(Some(&body));

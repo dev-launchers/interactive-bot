@@ -1,4 +1,4 @@
-use super::post::{post, PostError, Request};
+use super::http::{send, Method, PostError, Request};
 use std::collections::HashMap;
 use wasm_bindgen_futures::JsFuture;
 
@@ -31,10 +31,11 @@ impl KVClient {
         );
         let req = Request {
             url: url,
+            method: Method::POST,
             headers: headers,
             body: (),
         };
-        let js_resp = post(req).await?;
+        let js_resp = send(req).await?;
 
         // Convert this Promise into a rust Future.
         let json = JsFuture::from(js_resp.json()?).await?;
@@ -56,10 +57,11 @@ impl KVClient {
         );
         let req = Request {
             url: url,
+            method: Method::PUT,
             headers: headers,
             body: val,
         };
-        let js_resp = post(req).await?;
+        let js_resp = send(req).await?;
 
         // Convert this Promise into a rust Future.
         let json = JsFuture::from(js_resp.json()?).await?;
