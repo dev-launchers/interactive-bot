@@ -2,7 +2,7 @@ use super::post::{post, PostError, Request};
 use std::collections::HashMap;
 use wasm_bindgen_futures::JsFuture;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct SlackConfig {
     token: String,
     announcement_channel: String,

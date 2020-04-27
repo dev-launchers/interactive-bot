@@ -5,7 +5,7 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct DiscordConfig {
     // Shared secret to verify requests are from our discord-gateway
     pub gateway_token: String,

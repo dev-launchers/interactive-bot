@@ -6,6 +6,7 @@ extern crate wasm_bindgen_futures;
 
 mod calendar;
 mod discord;
+mod kv;
 mod post;
 mod route;
 mod slack;
@@ -15,6 +16,7 @@ mod utils;
 use calendar::{calendar_end, calendar_start, notifyTo};
 use cfg_if::cfg_if;
 use discord::{checkLastSubmission, submit, DiscordConfig};
+use kv::KVConfig;
 use route::Route;
 use slack::SlackConfig;
 use url::Url;
@@ -71,9 +73,10 @@ pub struct MessageEvent {
     timestamp: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct BotConfig {
     discord: DiscordConfig,
+    kv: KVConfig,
     slack: SlackConfig,
 }
 
