@@ -20,7 +20,7 @@ pub async fn calendar_start(
     req: Request,
     bot_config: BotConfig,
     to: notifyTo,
-) -> Result<(), JsValue> {
+) -> Result<JsValue, JsValue> {
     let body = JsFuture::from(req.json()?).await?;
     let event: CalendarStartEvent = body.into_serde().map_err(|e| {
         format!(
@@ -35,18 +35,18 @@ pub async fn calendar_start(
             let slack_client = new_slack_client(bot_config.slack);
             let resp = slack_client.post_message(msg).await?;
             match resp {
-                PostMessageResp::Ok(_) => Ok(()),
+                PostMessageResp::Ok(_) => Ok(JsValue::TRUE),
                 PostMessageResp::Err(e) => Err(JsValue::from_str(&e.error)),
             }
         }
         notifyTo::Discord => {
             let webhook_client = new_webhook_client(bot_config.discord.webhook_url);
             webhook_client.execute(msg).await?;
-            Ok(())
+            Ok(JsValue::TRUE)
         }
     }
 }
 
-pub async fn calendar_end(req: Request) -> Result<(), JsValue> {
-    Ok(())
+pub async fn calendar_end(req: Request) -> Result<JsValue, JsValue> {
+    Ok(JsValue::TRUE)
 }

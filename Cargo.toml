@@ -12,8 +12,6 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 cfg-if = "0.1.2"
-cloudflare-rs = "0.6.6"
-failure = "0.1.7"
 js-sys = "0.3.36"
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4.5"

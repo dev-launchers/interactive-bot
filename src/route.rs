@@ -12,13 +12,13 @@ pub enum Route {
 impl From<&Url> for Route {
     fn from(url: &Url) -> Route {
         if let Some(mut path_segments) = url.path_segments() {
-            match path_segments.next() {
+            return match path_segments.next() {
                 // /calendar_start
-                Some("calendar_start") => return Route::CalendarStart,
+                Some("calendar_start") => Route::CalendarStart,
                 // /calendar_end
-                Some("calendar_end") => return Route::CalendarEnd,
+                Some("calendar_end") => Route::CalendarEnd,
                 // /events
-                Some("events") => return Route::Events,
+                Some("events") => Route::Events,
                 Some("submit") => match path_segments.next() {
                     Some("discord") => match path_segments.next() {
                         Some("last") => {
@@ -31,21 +31,15 @@ impl From<&Url> for Route {
                                 Route::Unhandled
                             }
                         }
-                        Some(_) => Route::Unhandled,
-                        None => {
-                            if let Some(submitter) = path_segments.next() {
-                                // /submit/discord/:submitter
-                                Route::Submit {
-                                    submitter: submitter.to_string(),
-                                }
-                            } else {
-                                Route::Unhandled
-                            }
-                        }
+                        // /submit/discord/:submitter
+                        Some(s) => Route::Submit {
+                            submitter: s.to_string(),
+                        },
+                        None => Route::Unhandled,
                     },
-                    _ => return Route::Unhandled,
+                    _ => Route::Unhandled,
                 },
-                _ => return Route::Unhandled,
+                _ => Route::Unhandled,
             };
         }
         Route::Unhandled

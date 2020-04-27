@@ -1,4 +1,4 @@
-use super::kv::{Guess, KVClient};
+use super::kv::{Guess, KVClient, WriteResponse};
 use super::post::{post, PostError, Request};
 use super::BotConfig;
 
@@ -24,15 +24,14 @@ pub async fn submit(
     req: web_sys::Request,
     submitter: String,
     config: BotConfig,
-) -> Result<(), JsValue> {
+) -> Result<JsValue, JsValue> {
     let body = JsFuture::from(req.json()?).await?;
     let submission: Submission = body
         .into_serde()
         .map_err(|e| format!("Failed to deserialize into Submission, err: {:?}", e))?;
 
-    let client =
-        KVClient::new(config.kv).map_err(|e| format!("Failed to create KVClient, err: {:?}", e))?;
-    client
+    let client = KVClient::new(config.kv);
+    let resp = client
         .write(
             submitter,
             Guess {
@@ -42,15 +41,22 @@ pub async fn submit(
         )
         .await
         .map_err(|e| format!("Failed to submit, err: {:?}", e))?;
-    Ok(())
+
+    match resp {
+        WriteResponse::Ok(_) => Ok(JsValue::from_str("Submission accepted")),
+        WriteResponse::Err(e) => Err(JsValue::from_str(&format!(
+            "Failed to submit, err: {:?}",
+            e,
+        ))),
+    }
 }
 
 pub async fn checkLastSubmission(
     req: web_sys::Request,
     submitter: String,
     config: BotConfig,
-) -> Result<(), JsValue> {
-    Ok(())
+) -> Result<JsValue, JsValue> {
+    Err(JsValue::from_str("not implemented"))
 }
 
 #[derive(Serialize, Debug)]

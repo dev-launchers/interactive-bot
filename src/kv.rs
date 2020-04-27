@@ -1,11 +1,6 @@
-use cloudflare::framework::{
-    async_api::{ApiClient, Client},
-    auth::Credentials,
-    endpoint::{Endpoint, Method},
-    response::{ApiResponse, ApiResult},
-    Environment, HttpApiClientConfig,
-};
-use failure::Fallible;
+use super::post::{post, PostError, Request};
+use std::collections::HashMap;
+use wasm_bindgen_futures::JsFuture;
 
 #[derive(Deserialize)]
 pub struct KVConfig {
@@ -15,97 +10,87 @@ pub struct KVConfig {
 }
 
 pub struct KVClient {
-    client: Client,
-    account_id: String,
-    namespace_id: String,
+    config: KVConfig,
 }
 
 impl KVClient {
-    pub fn new(config: KVConfig) -> Fallible<KVClient> {
-        let cred = Credentials::UserAuthToken {
-            token: config.token,
+    pub fn new(config: KVConfig) -> KVClient {
+        KVClient { config }
+    }
+
+    pub async fn read(&self, key: String) -> Result<Guess, PostError> {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Authorization".to_string(),
+            format!("Bearer {}", self.config.token),
+        );
+        headers.insert("Content-type".to_string(), "application/json".to_string());
+        let url = format!(
+            "https://api.cloudflare.com/client/v4/accounts/{}/storage/kv/namespaces/{}/values/{}",
+            self.config.account_id, self.config.namespace_id, key
+        );
+        let req = Request {
+            url: url,
+            headers: headers,
+            body: (),
         };
-        let client = Client::new(
-            cred,
-            HttpApiClientConfig::default(),
-            Environment::Production,
-        )?;
-        Ok(KVClient {
-            client,
-            account_id: config.account_id,
-            namespace_id: config.namespace_id,
-        })
+        let js_resp = post(req).await?;
+
+        // Convert this Promise into a rust Future.
+        let json = JsFuture::from(js_resp.json()?).await?;
+
+        let resp: Guess = json.into_serde()?;
+        Ok(resp)
     }
 
-    pub async fn read(&self, key: String) -> ApiResponse<Guess> {
-        self.client
-            .request(&ReadKV {
-                account_id: &self.account_id,
-                namespace_id: &self.namespace_id,
-                key: &key,
-            })
-            .await
-    }
+    pub async fn write(&self, key: String, val: Guess) -> Result<WriteResponse, PostError> {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Authorization".to_string(),
+            format!("Bearer {}", self.config.token),
+        );
+        headers.insert("Content-type".to_string(), "application/json".to_string());
+        let url = format!(
+            "https://api.cloudflare.com/client/v4/accounts/{}/storage/kv/namespaces/{}/values/{}",
+            self.config.account_id, self.config.namespace_id, key
+        );
+        let req = Request {
+            url: url,
+            headers: headers,
+            body: val,
+        };
+        let js_resp = post(req).await?;
 
-    pub async fn write(&self, key: String, val: Guess) -> ApiResponse<()> {
-        self.client
-            .request(&WriteKV {
-                account_id: &self.account_id,
-                namespace_id: &self.namespace_id,
-                key: &key,
-                val: val,
-            })
-            .await
+        // Convert this Promise into a rust Future.
+        let json = JsFuture::from(js_resp.json()?).await?;
+
+        let resp: WriteResponse = json.into_serde()?;
+        Ok(resp)
     }
 }
 
-struct ReadKV<'a> {
-    account_id: &'a str,
-    namespace_id: &'a str,
-    key: &'a str,
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub enum WriteResponse {
+    Ok(WriteSuccess),
+    Err(WriteErr),
+}
+
+#[derive(Deserialize, Debug)]
+pub struct WriteSuccess {
+    pub success: bool,
+    pub errors: Vec<String>,
+    pub messages: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct WriteErr {
+    pub code: u16,
+    pub error: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Guess {
     pub value: String,
     pub created_at: u64,
-}
-
-impl ApiResult for Guess {}
-
-impl<'a> Endpoint<Guess, (), ()> for ReadKV<'a> {
-    fn method(&self) -> Method {
-        Method::Get
-    }
-
-    fn path(&self) -> String {
-        format!(
-            "accounts/{}/storage/kv/namespaces/{}/values/{}",
-            self.account_id, self.namespace_id, self.key
-        )
-    }
-}
-
-struct WriteKV<'a> {
-    account_id: &'a str,
-    namespace_id: &'a str,
-    key: &'a str,
-    val: Guess,
-}
-
-impl<'a> Endpoint<(), (), Guess> for WriteKV<'a> {
-    fn method(&self) -> Method {
-        Method::Put
-    }
-
-    fn path(&self) -> String {
-        format!(
-            "accounts/{}/storage/kv/namespaces/{}/values/{}",
-            self.account_id, self.namespace_id, self.key
-        )
-    }
-
-    fn body(&self) -> Option<Guess> {
-        Some(self.val.clone())
-    }
 }

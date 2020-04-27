@@ -97,15 +97,14 @@ pub async fn interactive_bot(req: JsValue, bot_config: JsValue) -> Result<JsValu
             checkLastSubmission(req, submitter, bot_config).await
         }
         Route::Unhandled => Err(unhandled(&url)),
-    }?;
-    Ok(JsValue::TRUE)
+    }
 }
 
-async fn events(req: Request) -> Result<(), JsValue> {
+async fn events(req: Request) -> Result<JsValue, JsValue> {
     let body = JsFuture::from(req.json()?).await?;
     // Using into_serde API requires activating the serde-serialize feature of the wasm-bindgen crate.
     let event: MessageEvent = body.into_serde().map_err(|e| e.to_string())?;
-    Ok(())
+    Ok(JsValue::TRUE)
 }
 fn unhandled(url: &Url) -> JsValue {
     JsValue::from_str(&format!("No handler defined for route {:?}", url.path()))
