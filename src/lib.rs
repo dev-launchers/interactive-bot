@@ -92,8 +92,10 @@ pub async fn interactive_bot(req: JsValue, bot_config: JsValue) -> Result<JsValu
         Route::CalendarStart => calendar_start(req, bot_config, notifyTo::Discord).await,
         Route::CalendarEnd => calendar_end(req).await,
         Route::Events => events(req).await,
-        Route::Submit => submit(req).await,
-        Route::CheckLastSubmission => checkLastSubmission(req).await,
+        Route::Submit { submitter } => submit(req, submitter, bot_config).await,
+        Route::CheckLastSubmission { submitter } => {
+            checkLastSubmission(req, submitter, bot_config).await
+        }
         Route::Unhandled => Err(unhandled(&url)),
     }?;
     Ok(JsValue::TRUE)

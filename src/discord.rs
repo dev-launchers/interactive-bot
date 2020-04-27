@@ -1,4 +1,6 @@
+use super::kv::{Guess, KVClient};
 use super::post::{post, PostError, Request};
+use super::BotConfig;
 
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
@@ -18,15 +20,36 @@ struct Submission {
     ts: u64,
 }
 
-pub async fn submit(req: web_sys::Request) -> Result<(), JsValue> {
+pub async fn submit(
+    req: web_sys::Request,
+    submitter: String,
+    config: BotConfig,
+) -> Result<(), JsValue> {
     let body = JsFuture::from(req.json()?).await?;
     let submission: Submission = body
         .into_serde()
         .map_err(|e| format!("Failed to deserialize into Submission, err: {:?}", e))?;
+
+    let client =
+        KVClient::new(config.kv).map_err(|e| format!("Failed to create KVClient, err: {:?}", e))?;
+    client
+        .write(
+            submitter,
+            Guess {
+                value: submission.submission,
+                created_at: submission.ts,
+            },
+        )
+        .await
+        .map_err(|e| format!("Failed to submit, err: {:?}", e))?;
     Ok(())
 }
 
-pub async fn checkLastSubmission(req: web_sys::Request) -> Result<(), JsValue> {
+pub async fn checkLastSubmission(
+    req: web_sys::Request,
+    submitter: String,
+    config: BotConfig,
+) -> Result<(), JsValue> {
     Ok(())
 }
 

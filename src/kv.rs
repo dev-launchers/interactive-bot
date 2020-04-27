@@ -21,7 +21,7 @@ pub struct KVClient {
 }
 
 impl KVClient {
-    fn new(config: KVConfig) -> Fallible<KVClient> {
+    pub fn new(config: KVConfig) -> Fallible<KVClient> {
         let cred = Credentials::UserAuthToken {
             token: config.token,
         };
@@ -37,7 +37,7 @@ impl KVClient {
         })
     }
 
-    async fn read(&self, key: String) -> ApiResponse<Guess> {
+    pub async fn read(&self, key: String) -> ApiResponse<Guess> {
         self.client
             .request(&ReadKV {
                 account_id: &self.account_id,
@@ -47,7 +47,7 @@ impl KVClient {
             .await
     }
 
-    async fn write(&self, key: String, val: Guess) -> ApiResponse<()> {
+    pub async fn write(&self, key: String, val: Guess) -> ApiResponse<()> {
         self.client
             .request(&WriteKV {
                 account_id: &self.account_id,
@@ -67,8 +67,8 @@ struct ReadKV<'a> {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Guess {
-    value: String,
-    created_at: u64,
+    pub value: String,
+    pub created_at: u64,
 }
 
 impl ApiResult for Guess {}
