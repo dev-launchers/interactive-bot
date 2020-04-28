@@ -15,6 +15,7 @@ where
 }
 
 pub enum Method {
+    GET,
     POST,
     PUT,
 }
@@ -22,6 +23,7 @@ pub enum Method {
 impl Method {
     pub fn as_str(&self) -> &str {
         match self {
+            Method::GET => "GET",
             Method::POST => "POST",
             Method::PUT => "PUT",
         }
@@ -33,10 +35,17 @@ where
     T: Serialize,
 {
     let mut opts = RequestInit::new();
-    opts.method(req.method.as_str());
-    // Equivalent to JSON.stringify in JS
-    let body = JsValue::from_str(&serde_json::to_string(&req.body)?);
-    opts.body(Some(&body));
+
+    let method = req.method;
+    match method {
+        Method::GET => {}
+        Method::POST | Method::PUT => {
+            opts.method(method.as_str());
+            // Equivalent to JSON.stringify in JS
+            let body = JsValue::from_str(&serde_json::to_string(&req.body)?);
+            opts.body(Some(&body));
+        }
+    };
 
     let request = web_sys::Request::new_with_str_and_init(&req.url, &opts)?;
     for (k, v) in req.headers.iter() {

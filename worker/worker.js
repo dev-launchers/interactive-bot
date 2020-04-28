@@ -36,7 +36,7 @@ async function handleRequest(request) {
 
   const result = await interactive_bot(request, botConfig)
     .then(result => {
-      return new Response("Success", {
+      return new Response(result, {
         "status": 200,
         "statusText": "OK",
         "headers": { 'Content-Type': 'text/plain' }

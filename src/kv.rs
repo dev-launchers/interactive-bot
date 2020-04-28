@@ -1,6 +1,11 @@
 use super::http::{send, Method, PostError, Request};
+use chrono::prelude::*;
+use js_sys::ArrayBuffer;
+use serde_json;
 use std::collections::HashMap;
+use std::fmt;
 use wasm_bindgen_futures::JsFuture;
+use web_sys::TextDecoder;
 
 #[derive(Deserialize)]
 pub struct KVConfig {
@@ -31,17 +36,20 @@ impl KVClient {
         );
         let req = Request {
             url: url,
-            method: Method::POST,
+            method: Method::GET,
             headers: headers,
             body: (),
         };
         let js_resp = send(req).await?;
 
         // Convert this Promise into a rust Future.
-        let json = JsFuture::from(js_resp.json()?).await?;
+        let js_value = JsFuture::from(js_resp.array_buffer()?).await?;
+        let array_buffer = ArrayBuffer::from(js_value);
+        let decoder = TextDecoder::new_with_label("utf-8")?;
+        let content = decoder.decode_with_buffer_source(&array_buffer)?;
+        let last = serde_json::from_str(&content)?;
 
-        let resp: Guess = json.into_serde()?;
-        Ok(resp)
+        Ok(last)
     }
 
     pub async fn write(&self, key: String, val: Guess) -> Result<WriteResponse, PostError> {
@@ -94,5 +102,16 @@ pub struct WriteErr {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Guess {
     pub value: String,
-    pub created_at: u64,
+    pub created_at: i64,
+}
+
+impl fmt::Display for Guess {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Create a NaiveDateTime from the timestamp
+        let naive = NaiveDateTime::from_timestamp(self.created_at, 0);
+
+        // Create a normal DateTime from the NaiveDateTime
+        let readable_time: DateTime<Utc> = DateTime::from_utc(naive, Utc);
+        write!(f, "{} submitted at {}", self.value, readable_time)
+    }
 }

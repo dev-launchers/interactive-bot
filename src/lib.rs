@@ -94,7 +94,7 @@ pub async fn interactive_bot(req: JsValue, bot_config: JsValue) -> Result<JsValu
         Route::Events => events(req).await,
         Route::Submit { submitter } => submit(req, submitter, bot_config).await,
         Route::CheckLastSubmission { submitter } => {
-            checkLastSubmission(req, submitter, bot_config).await
+            checkLastSubmission(submitter, bot_config).await
         }
         Route::Unhandled => Err(unhandled(&url)),
     }

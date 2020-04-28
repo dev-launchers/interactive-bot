@@ -17,7 +17,7 @@ pub struct DiscordConfig {
 #[derive(Deserialize, Debug)]
 struct Submission {
     submission: String,
-    ts: u64,
+    ts: i64,
 }
 
 pub async fn submit(
@@ -51,12 +51,13 @@ pub async fn submit(
     }
 }
 
-pub async fn checkLastSubmission(
-    req: web_sys::Request,
-    submitter: String,
-    config: BotConfig,
-) -> Result<JsValue, JsValue> {
-    Err(JsValue::from_str("not implemented"))
+pub async fn checkLastSubmission(submitter: String, config: BotConfig) -> Result<JsValue, JsValue> {
+    let client = KVClient::new(config.kv);
+    let resp = client
+        .read(submitter)
+        .await
+        .map_err(|e| format!("Failed to check last submission, err: {:?}", e))?;
+    Ok(JsValue::from_str(&resp.to_string()))
 }
 
 #[derive(Serialize, Debug)]
