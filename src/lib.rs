@@ -6,6 +6,7 @@ extern crate wasm_bindgen_futures;
 
 mod calendar;
 mod discord;
+mod emoji;
 mod http;
 mod kv;
 mod route;
@@ -16,6 +17,7 @@ mod utils;
 use calendar::{calendar_end, calendar_start, notifyTo};
 use cfg_if::cfg_if;
 use discord::{checkLastSubmission, submit, DiscordConfig};
+use emoji::LotteryConfig;
 use kv::KVConfig;
 use route::Route;
 use slack::SlackConfig;
@@ -77,6 +79,7 @@ pub struct MessageEvent {
 pub struct BotConfig {
     discord: DiscordConfig,
     kv: KVConfig,
+    emoji: LotteryConfig,
     slack: SlackConfig,
 }
 

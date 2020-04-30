@@ -14,6 +14,7 @@ async function handleRequest(request) {
   const kvToken = await LOTTERY_BOT_CONFIG.get("kvToken");
   const kvAccountId = await LOTTERY_BOT_CONFIG.get("kvAccountId");
   const kvNamespaceId = await LOTTERY_BOT_CONFIG.get("kvNamespaceId");
+  const lotteryConfig = await LOTTERY_BOT_CONFIG.get("lotteryConfig");
   const slackToken = await LOTTERY_BOT_CONFIG.get("slackToken");
   const slackAnnouncementChannel = await LOTTERY_BOT_CONFIG.get("slackAnnouncementChannel");
 
@@ -28,6 +29,7 @@ async function handleRequest(request) {
       namespace_id: kvNamespaceId,
 
     },
+    emoji: JSON.parse(lotteryConfig),
     slack: {
       token: slackToken,
       announcement_channel: slackAnnouncementChannel,

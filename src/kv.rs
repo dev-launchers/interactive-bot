@@ -23,7 +23,7 @@ impl KVClient {
         KVClient { config }
     }
 
-    pub async fn read(&self, key: String) -> Result<Guess, PostError> {
+    pub async fn read(&self, key: &str) -> Result<Guess, PostError> {
         let mut headers = HashMap::new();
         headers.insert(
             "Authorization".to_string(),
