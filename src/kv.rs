@@ -4,6 +4,7 @@ use js_sys::ArrayBuffer;
 use serde_json;
 use std::collections::HashMap;
 use std::fmt;
+use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::TextDecoder;
 
@@ -23,7 +24,7 @@ impl KVClient {
         KVClient { config }
     }
 
-    pub async fn read(&self, key: &str) -> Result<Guess, PostError> {
+    pub async fn read(&self, key: &str) -> Result<Option<Guess>, PostError> {
         let mut headers = HashMap::new();
         headers.insert(
             "Authorization".to_string(),
@@ -42,14 +43,28 @@ impl KVClient {
         };
         let js_resp = send(req).await?;
 
-        // Convert this Promise into a rust Future.
-        let js_value = JsFuture::from(js_resp.array_buffer()?).await?;
-        let array_buffer = ArrayBuffer::from(js_value);
-        let decoder = TextDecoder::new_with_label("utf-8")?;
-        let content = decoder.decode_with_buffer_source(&array_buffer)?;
-        let last = serde_json::from_str(&content)?;
-
-        Ok(last)
+        if js_resp.ok() {
+            // Convert this Promise into a rust Future.
+            let js_value = JsFuture::from(js_resp.array_buffer()?).await?;
+            let array_buffer = ArrayBuffer::from(js_value);
+            let decoder = TextDecoder::new_with_label("utf-8")?;
+            let content = decoder.decode_with_buffer_source(&array_buffer)?;
+            let last: Guess = serde_json::from_str(&content)?;
+            Ok(Some(last))
+        } else {
+            // Convert this Promise into a rust Future.
+            let json = JsFuture::from(js_resp.json()?).await?;
+            let resp: ReadErr = json.into_serde()?;
+            let errCode = resp.errors[0].code;
+            // 10009 is key not found
+            if errCode == 10009 {
+                return Ok(None);
+            }
+            return Err(PostError::Jv(JsValue::from_str(&format!(
+                "Failed to read key, err code {}, message {}",
+                errCode, resp.errors[0].message
+            ))));
+        }
     }
 
     pub async fn write(&self, key: String, val: Guess) -> Result<WriteResponse, PostError> {
@@ -97,6 +112,17 @@ pub struct WriteSuccess {
 pub struct WriteErr {
     pub code: u16,
     pub error: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ReadErr {
+    errors: Vec<ErrCode>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ErrCode {
+    code: u64,
+    message: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

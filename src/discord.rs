@@ -44,7 +44,7 @@ pub async fn submit(
     let last_try = client
         .read(&submitter)
         .await
-        .map_err(|e| format!("Can't retrieve last try"))?;
+        .map_err(|e| format!("Can't retrieve last try, err: {:?}", e))?;
 
     let current_guess = Guess {
         value: submission.submission,
@@ -52,40 +52,36 @@ pub async fn submit(
     };
 
     let retry_in_hrs = config.emoji.retry_in_hrs;
-    match can_submit(&last_try, &current_guess, config.emoji) {
-        Ok(_) => {
-            let resp = client
-                .write(submitter, current_guess)
-                .await
-                .map_err(|e| format!("Failed to submit, err: {:?}", e))?;
-
-            match resp {
-                WriteResponse::Ok(_) => Ok(JsValue::from_str(&format!(
-                    "Not quite what I had in mind, try again in {:} hrs",
-                    retry_in_hrs,
-                ))),
-                WriteResponse::Err(e) => Err(JsValue::from_str(&format!(
-                    "Failed to submit, err: {:?}",
-                    e,
-                ))),
+    match last_try {
+        Some(l) => {
+            let last_time = NaiveDateTime::from_timestamp(l.created_at, 0);
+            let current_time = NaiveDateTime::from_timestamp(current_guess.created_at, 0);
+            let next_retryable_time = last_time + chrono::Duration::hours(retry_in_hrs);
+            if current_time < next_retryable_time {
+                return Ok(JsValue::from_str(&format!(
+                    "please submit after {:?}",
+                    next_retryable_time
+                )));
             }
         }
-        Err(e) => Ok(JsValue::from_str(&format!("please submit after {:?}", e))),
-    }
-}
+        None => {}
+    };
 
-fn can_submit(
-    last_try: &Guess,
-    current_guess: &Guess,
-    emoji_config: LotteryConfig,
-) -> Result<(), DateTime<Utc>> {
-    let last_time = NaiveDateTime::from_timestamp(last_try.created_at, 0);
-    let current_time = NaiveDateTime::from_timestamp(current_guess.created_at, 0);
-    let next_retryable_time = last_time + chrono::Duration::hours(emoji_config.retry_in_hrs);
-    if current_time > next_retryable_time {
-        return Ok(());
+    let resp = client
+        .write(submitter, current_guess)
+        .await
+        .map_err(|e| format!("Failed to submit, err: {:?}", e))?;
+
+    match resp {
+        WriteResponse::Ok(_) => Ok(JsValue::from_str(&format!(
+            "Not quite what I had in mind, try again in {:} hrs",
+            retry_in_hrs,
+        ))),
+        WriteResponse::Err(e) => Err(JsValue::from_str(&format!(
+            "Failed to submit, err: {:?}",
+            e,
+        ))),
     }
-    Err(DateTime::from_utc(next_retryable_time, Utc))
 }
 
 pub async fn checkLastSubmission(submitter: String, config: BotConfig) -> Result<JsValue, JsValue> {
@@ -94,7 +90,10 @@ pub async fn checkLastSubmission(submitter: String, config: BotConfig) -> Result
         .read(&submitter)
         .await
         .map_err(|e| format!("Failed to check last submission, err: {:?}", e))?;
-    Ok(JsValue::from_str(&resp.to_string()))
+    match resp {
+        Some(s) => Ok(JsValue::from_str(&s.to_string())),
+        None => Ok(JsValue::from_str("You haven't submit anything yet!")),
+    }
 }
 
 #[derive(Serialize, Debug)]
