@@ -11,28 +11,30 @@ async function handleRequest(request) {
   await wasm_bindgen(wasm)
   const discordGatewayToken = await LOTTERY_BOT_CONFIG.get("discordGatewayToken");
   const discordWebhookUrl = await LOTTERY_BOT_CONFIG.get("discordWebhookUrl");
+  const discordMaintainer = await LOTTERY_BOT_CONFIG.get("discordMaintainer");
   const kvToken = await LOTTERY_BOT_CONFIG.get("kvToken");
   const kvAccountId = await LOTTERY_BOT_CONFIG.get("kvAccountId");
-  const kvNamespaceId = await LOTTERY_BOT_CONFIG.get("kvNamespaceId");
   const lotteryConfig = await LOTTERY_BOT_CONFIG.get("lotteryConfig");
   const slackToken = await LOTTERY_BOT_CONFIG.get("slackToken");
   const slackAnnouncementChannel = await LOTTERY_BOT_CONFIG.get("slackAnnouncementChannel");
+  const slackMaintainer = await LOTTERY_BOT_CONFIG.get("slackMaintainer");
 
   const botConfig = {
     discord: {
       webhook_url: discordWebhookUrl,
       gateway_token: discordGatewayToken,
+      maintainer: discordMaintainer,
     },
     kv: {
       token: kvToken,
       account_id: kvAccountId,
-      namespace_id: kvNamespaceId,
 
     },
     emoji: JSON.parse(lotteryConfig),
     slack: {
       token: slackToken,
       announcement_channel: slackAnnouncementChannel,
+      maintainer: slackMaintainer,
     },
   };
 

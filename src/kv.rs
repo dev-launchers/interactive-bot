@@ -1,6 +1,7 @@
 use super::http::{send, Method, PostError, Request};
 use chrono::prelude::*;
 use js_sys::ArrayBuffer;
+use serde::Serialize;
 use serde_json;
 use std::collections::HashMap;
 use std::fmt;
@@ -12,28 +13,33 @@ use web_sys::TextDecoder;
 pub struct KVConfig {
     token: String,
     account_id: String,
-    namespace_id: String,
 }
 
 pub struct KVClient {
-    config: KVConfig,
+    token: String,
+    account_id: String,
+    namespace_id: String,
 }
 
 impl KVClient {
-    pub fn new(config: KVConfig) -> KVClient {
-        KVClient { config }
+    pub fn new(config: KVConfig, namespace_id: String) -> KVClient {
+        KVClient {
+            token: config.token,
+            account_id: config.account_id,
+            namespace_id,
+        }
     }
 
     pub async fn read(&self, key: &str) -> Result<Option<Guess>, PostError> {
         let mut headers = HashMap::new();
         headers.insert(
             "Authorization".to_string(),
-            format!("Bearer {}", self.config.token),
+            format!("Bearer {}", self.token),
         );
         headers.insert("Content-type".to_string(), "application/json".to_string());
         let url = format!(
             "https://api.cloudflare.com/client/v4/accounts/{}/storage/kv/namespaces/{}/values/{}",
-            self.config.account_id, self.config.namespace_id, key
+            self.account_id, self.namespace_id, key
         );
         let req = Request {
             url: url,
@@ -67,16 +73,19 @@ impl KVClient {
         }
     }
 
-    pub async fn write(&self, key: String, val: Guess) -> Result<WriteResponse, PostError> {
+    pub async fn write<T>(&self, key: &str, val: T) -> Result<WriteResponse, PostError>
+    where
+        T: Serialize,
+    {
         let mut headers = HashMap::new();
         headers.insert(
             "Authorization".to_string(),
-            format!("Bearer {}", self.config.token),
+            format!("Bearer {}", self.token),
         );
         headers.insert("Content-type".to_string(), "application/json".to_string());
         let url = format!(
             "https://api.cloudflare.com/client/v4/accounts/{}/storage/kv/namespaces/{}/values/{}",
-            self.config.account_id, self.config.namespace_id, key
+            self.account_id, self.namespace_id, key
         );
         let req = Request {
             url: url,

@@ -14,6 +14,7 @@ pub struct DiscordConfig {
     // Shared secret to verify requests are from our discord-gateway
     pub gateway_token: String,
     pub webhook_url: String,
+    pub maintainer: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -40,7 +41,7 @@ pub async fn submit(
     if submission.submission == config.emoji.jackpot {
         return Ok(JsValue::from_str("Bingo!"));
     }
-    let client = KVClient::new(config.kv);
+    let client = KVClient::new(config.kv, config.emoji.data_kv_namespace);
     let last_try = client
         .read(&submitter)
         .await
@@ -68,7 +69,7 @@ pub async fn submit(
     };
 
     let resp = client
-        .write(submitter, current_guess)
+        .write(&submitter, current_guess)
         .await
         .map_err(|e| format!("Failed to submit, err: {:?}", e))?;
 
@@ -85,7 +86,7 @@ pub async fn submit(
 }
 
 pub async fn checkLastSubmission(submitter: String, config: BotConfig) -> Result<JsValue, JsValue> {
-    let client = KVClient::new(config.kv);
+    let client = KVClient::new(config.kv, config.emoji.data_kv_namespace);
     let resp = client
         .read(&submitter)
         .await

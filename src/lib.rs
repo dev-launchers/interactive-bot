@@ -1,4 +1,5 @@
 extern crate cfg_if;
+extern crate rand;
 #[macro_use]
 extern crate serde_derive;
 extern crate wasm_bindgen;
@@ -14,7 +15,7 @@ mod slack;
 #[macro_use]
 mod utils;
 
-use calendar::{calendar_end, calendar_start, notifyTo};
+use calendar::{calendar_end, calendar_start, NotifyTo};
 use cfg_if::cfg_if;
 use discord::{checkLastSubmission, submit, DiscordConfig};
 use emoji::LotteryConfig;
@@ -83,6 +84,15 @@ pub struct BotConfig {
     slack: SlackConfig,
 }
 
+impl BotConfig {
+    pub fn mention_maintainer(&self, notify_to: &calendar::NotifyTo) -> String {
+        match notify_to {
+            NotifyTo::Discord => format!("<@{}>", self.discord.maintainer).to_string(),
+            NotifyTo::Slack => format!("@{}", self.slack.maintainer).to_string(),
+        }
+    }
+}
+
 #[wasm_bindgen]
 pub async fn interactive_bot(req: JsValue, bot_config: JsValue) -> Result<JsValue, JsValue> {
     let bot_config: BotConfig = bot_config.into_serde().map_err(|e| e.to_string())?;
@@ -92,7 +102,7 @@ pub async fn interactive_bot(req: JsValue, bot_config: JsValue) -> Result<JsValu
     let url = Url::parse(&url_str).map_err(|_| format!("{:?} is not a valid url", url_str))?;
 
     match Route::from(&url) {
-        Route::CalendarStart => calendar_start(req, bot_config, notifyTo::Discord).await,
+        Route::CalendarStart => calendar_start(req, bot_config, NotifyTo::Discord).await,
         Route::CalendarEnd => calendar_end(req).await,
         Route::Events => events(req).await,
         Route::Submit { submitter } => submit(req, submitter, bot_config).await,

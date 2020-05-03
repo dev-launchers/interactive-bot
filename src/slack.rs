@@ -6,6 +6,7 @@ use wasm_bindgen_futures::JsFuture;
 pub struct SlackConfig {
     token: String,
     announcement_channel: String,
+    pub maintainer: String,
 }
 
 /*
