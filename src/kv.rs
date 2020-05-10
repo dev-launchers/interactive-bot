@@ -1,7 +1,7 @@
 use super::http::{send, Method, PostError, Request};
 use chrono::prelude::*;
 use js_sys::ArrayBuffer;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
 use std::collections::HashMap;
 use std::fmt;
@@ -60,7 +60,7 @@ impl KVClient {
         } else {
             // Convert this Promise into a rust Future.
             let json = JsFuture::from(js_resp.json()?).await?;
-            let resp: ReadErr = json.into_serde()?;
+            let resp = json.into_serde::<Failure>()?;
             let errCode = resp.errors[0].code;
             // 10009 is key not found
             if errCode == 10009 {
@@ -73,9 +73,10 @@ impl KVClient {
         }
     }
 
-    pub async fn write<T>(&self, key: &str, val: T) -> Result<WriteResponse, PostError>
+    pub async fn write<T, U>(&self, key: &str, val: T) -> Result<Response<U>, PostError>
     where
         T: Serialize,
+        U: DeserializeOwned,
     {
         let mut headers = HashMap::new();
         headers.insert(
@@ -98,40 +99,39 @@ impl KVClient {
         // Convert this Promise into a rust Future.
         let json = JsFuture::from(js_resp.json()?).await?;
 
-        let resp: WriteResponse = json.into_serde()?;
+        let resp = json.into_serde::<Response<U>>()?;
         Ok(resp)
+    }
+
+    pub async fn delete_namespace(&self) -> Result<(), PostError> {
+        Ok(())
     }
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
-pub enum WriteResponse {
-    Ok(WriteSuccess),
-    Err(WriteErr),
+pub enum Response<T> {
+    Ok(Success<T>),
+    Err(Failure),
 }
 
 #[derive(Deserialize, Debug)]
-pub struct WriteSuccess {
+pub struct Success<T> {
+    pub result: Option<T>,
     pub success: bool,
-    pub errors: Vec<String>,
     pub messages: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct WriteErr {
+pub struct Failure {
+    pub success: bool,
+    pub errors: Vec<Error>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Error {
     pub code: u16,
-    pub error: String,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct ReadErr {
-    errors: Vec<ErrCode>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct ErrCode {
-    code: u64,
-    message: String,
+    pub message: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

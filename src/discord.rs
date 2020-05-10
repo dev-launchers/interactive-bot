@@ -1,6 +1,6 @@
 use super::emoji::LotteryConfig;
 use super::http::{send, Method, PostError, Request};
-use super::kv::{Guess, KVClient, WriteResponse};
+use super::kv::{Guess, KVClient, Response};
 use super::BotConfig;
 
 use chrono::prelude::*;
@@ -69,16 +69,16 @@ pub async fn submit(
     };
 
     let resp = client
-        .write(&submitter, current_guess)
+        .write::<Guess, ()>(&submitter, current_guess)
         .await
         .map_err(|e| format!("Failed to submit, err: {:?}", e))?;
 
     match resp {
-        WriteResponse::Ok(_) => Ok(JsValue::from_str(&format!(
+        Response::Ok(_) => Ok(JsValue::from_str(&format!(
             "Not quite what I had in mind, try again in {:} hrs",
             retry_in_hrs,
         ))),
-        WriteResponse::Err(e) => Err(JsValue::from_str(&format!(
+        Response::Err(e) => Err(JsValue::from_str(&format!(
             "Failed to submit, err: {:?}",
             e,
         ))),

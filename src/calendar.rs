@@ -1,5 +1,6 @@
 use super::discord::new_webhook_client;
-use super::kv::{KVClient, WriteResponse};
+use super::emoji::LotteryConfig;
+use super::kv::{KVClient, Response};
 use super::slack::{new_slack_client, PostMessageResp};
 use super::BotConfig;
 
@@ -35,16 +36,16 @@ pub async fn calendar_start(
     let new_config = bot_config.emoji.commence();
     // Update emoji lottery config to start a new season
     let resp = client
-        .write(&key, &new_config)
+        .write::<&LotteryConfig, ()>(&key, &new_config)
         .await
         .map_err(|e| format!("Failed to write new emoji lottery config, err: {:?}", e))?;
 
     let msg = match resp {
-        WriteResponse::Ok(_) => format!(
+        Response::Ok(_) => format!(
             "{} season {} commence",
             event.calendar_name, new_config.season,
         ),
-        WriteResponse::Err(e) => format!(
+        Response::Err(e) => format!(
             "Failed to start new emoji lottery, err: {:?}\n {} please fix it.",
             e, mention_maintainer,
         ),
