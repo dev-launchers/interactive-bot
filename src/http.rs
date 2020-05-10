@@ -1,3 +1,5 @@
+use super::error::Error;
+
 use serde::Serialize;
 use std::collections::HashMap;
 use wasm_bindgen::{JsCast, JsValue};
@@ -18,6 +20,7 @@ pub enum Method {
     GET,
     POST,
     PUT,
+    DELETE,
 }
 
 impl Method {
@@ -26,21 +29,22 @@ impl Method {
             Method::GET => "GET",
             Method::POST => "POST",
             Method::PUT => "PUT",
+            Method::DELETE => "DELETE",
         }
     }
 }
 
-pub async fn send<T>(req: Request<T>) -> Result<Response, PostError>
+pub async fn send<T>(req: Request<T>) -> Result<Response, Error>
 where
     T: Serialize,
 {
     let mut opts = RequestInit::new();
 
     let method = req.method;
+    opts.method(method.as_str());
     match method {
-        Method::GET => {}
+        Method::GET | Method::DELETE => {}
         Method::POST | Method::PUT => {
-            opts.method(method.as_str());
             // Equivalent to JSON.stringify in JS
             let body = JsValue::from_str(&serde_json::to_string(&req.body)?);
             opts.body(Some(&body));
@@ -52,7 +56,7 @@ where
         request.headers().set(k, v)?;
     }
 
-    let window = worker_global_scope().ok_or(PostError::NoWindow)?;
+    let window = worker_global_scope().ok_or(Error::NoWindow)?;
 
     // `resp_value` is a JS `Response` object.
     let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -66,35 +70,4 @@ fn worker_global_scope() -> Option<web_sys::ServiceWorkerGlobalScope> {
     js_sys::global()
         .dyn_into::<web_sys::ServiceWorkerGlobalScope>()
         .ok()
-}
-
-#[derive(Debug)]
-pub enum PostError {
-    Jv(JsValue),
-    SerdeJson(serde_json::error::Error),
-    NoWindow,
-}
-
-impl From<PostError> for JsValue {
-    fn from(pe: PostError) -> Self {
-        match pe {
-            PostError::Jv(jv) => jv,
-            PostError::SerdeJson(e) => JsValue::from_str(&e.to_string()),
-            PostError::NoWindow => {
-                JsValue::from_str("The runtime doesn't expose a Window interface")
-            }
-        }
-    }
-}
-
-impl From<serde_json::error::Error> for PostError {
-    fn from(e: serde_json::error::Error) -> Self {
-        PostError::SerdeJson(e)
-    }
-}
-
-impl From<JsValue> for PostError {
-    fn from(e: JsValue) -> Self {
-        PostError::Jv(e)
-    }
 }

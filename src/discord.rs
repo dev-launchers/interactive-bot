@@ -1,6 +1,6 @@
-use super::emoji::LotteryConfig;
-use super::http::{send, Method, PostError, Request};
-use super::kv::{Guess, KVClient, Response};
+use super::error::Error;
+use super::http::{send, Method, Request};
+use super::kv::{Guess, KVClient};
 use super::BotConfig;
 
 use chrono::prelude::*;
@@ -69,20 +69,14 @@ pub async fn submit(
     };
 
     let resp = client
-        .write::<Guess, ()>(&submitter, current_guess)
+        .write::<Guess>(&submitter, current_guess)
         .await
         .map_err(|e| format!("Failed to submit, err: {:?}", e))?;
 
-    match resp {
-        Response::Ok(_) => Ok(JsValue::from_str(&format!(
-            "Not quite what I had in mind, try again in {:} hrs",
-            retry_in_hrs,
-        ))),
-        Response::Err(e) => Err(JsValue::from_str(&format!(
-            "Failed to submit, err: {:?}",
-            e,
-        ))),
-    }
+    Ok(JsValue::from_str(&format!(
+        "Not quite what I had in mind, try again in {:} hrs",
+        retry_in_hrs,
+    )))
 }
 
 pub async fn checkLastSubmission(submitter: String, config: BotConfig) -> Result<JsValue, JsValue> {
@@ -111,7 +105,7 @@ pub fn new_webhook_client(url: String) -> WebhookClient {
 }
 
 impl WebhookClient {
-    pub async fn execute(&self, message: String) -> Result<(), PostError> {
+    pub async fn execute(&self, message: String) -> Result<(), Error> {
         let mut headers = HashMap::new();
         headers.insert("Content-type".to_string(), "application/json".to_string());
         let req = Request {

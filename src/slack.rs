@@ -1,4 +1,5 @@
-use super::http::{send, Method, PostError, Request};
+use super::error::Error;
+use super::http::{send, Method, Request};
 use std::collections::HashMap;
 use wasm_bindgen_futures::JsFuture;
 
@@ -80,7 +81,7 @@ pub fn new_slack_client(config: SlackConfig) -> SlackClient {
 }
 
 impl SlackClient {
-    pub async fn post_message(&self, message: String) -> Result<PostMessageResp, PostError> {
+    pub async fn post_message(&self, message: String) -> Result<PostMessageResp, Error> {
         let mut headers = HashMap::new();
         headers.insert(
             "Authorization".to_string(),

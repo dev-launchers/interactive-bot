@@ -1,4 +1,6 @@
-use super::http::{send, Method, PostError, Request};
+use super::error;
+use super::http::{send, Method, Request};
+
 use chrono::prelude::*;
 use js_sys::ArrayBuffer;
 use serde::{de::DeserializeOwned, Serialize};
@@ -30,7 +32,7 @@ impl KVClient {
         }
     }
 
-    pub async fn read(&self, key: &str) -> Result<Option<Guess>, PostError> {
+    pub async fn read(&self, key: &str) -> Result<Option<Guess>, error::Error> {
         let mut headers = HashMap::new();
         headers.insert(
             "Authorization".to_string(),
@@ -60,23 +62,22 @@ impl KVClient {
         } else {
             // Convert this Promise into a rust Future.
             let json = JsFuture::from(js_resp.json()?).await?;
-            let resp = json.into_serde::<Failure>()?;
-            let errCode = resp.errors[0].code;
+            let resp = json.into_serde::<NoResultResponse>()?;
+            let err_code = resp.errors[0].code;
             // 10009 is key not found
-            if errCode == 10009 {
+            if err_code == 10009 {
                 return Ok(None);
             }
-            return Err(PostError::Jv(JsValue::from_str(&format!(
+            return Err(error::Error::Jv(JsValue::from_str(&format!(
                 "Failed to read key, err code {}, message {}",
-                errCode, resp.errors[0].message
+                err_code, resp.errors[0].message
             ))));
         }
     }
 
-    pub async fn write<T, U>(&self, key: &str, val: T) -> Result<Response<U>, PostError>
+    pub async fn write<T>(&self, key: &str, val: T) -> Result<(), error::Error>
     where
         T: Serialize,
-        U: DeserializeOwned,
     {
         let mut headers = HashMap::new();
         headers.insert(
@@ -99,39 +100,138 @@ impl KVClient {
         // Convert this Promise into a rust Future.
         let json = JsFuture::from(js_resp.json()?).await?;
 
-        let resp = json.into_serde::<Response<U>>()?;
-        Ok(resp)
+        let resp = json.into_serde::<NoResultResponse>()?;
+        resp.result()
     }
 
-    pub async fn delete_namespace(&self) -> Result<(), PostError> {
-        Ok(())
+    pub async fn create_namespace(
+        &self,
+        title: String,
+    ) -> Result<CreateNamespaceResult, error::Error> {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Authorization".to_string(),
+            format!("Bearer {}", self.token),
+        );
+        headers.insert("Content-type".to_string(), "application/json".to_string());
+        let url = format!(
+            "https://api.cloudflare.com/client/v4/accounts/{}/storage/kv/namespaces",
+            self.account_id
+        );
+        let req = Request {
+            url: url,
+            method: Method::POST,
+            headers: headers,
+            body: CreateNamespaceBody { title: title },
+        };
+        let js_resp = send(req).await?;
+
+        // Convert this Promise into a rust Future.
+        let json = JsFuture::from(js_resp.json()?).await?;
+
+        let resp = json.into_serde::<ExpectResultResponse<CreateNamespaceResult>>()?;
+
+        resp.result()
+    }
+
+    pub async fn delete_namespace(&self, namespace_id: String) -> Result<(), error::Error> {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Authorization".to_string(),
+            format!("Bearer {}", self.token),
+        );
+        headers.insert("Content-type".to_string(), "application/json".to_string());
+        let url = format!(
+            "https://api.cloudflare.com/client/v4/accounts/{}/storage/kv/namespaces/{}",
+            self.account_id, namespace_id
+        );
+        let req = Request {
+            url: url,
+            method: Method::DELETE,
+            headers: headers,
+            body: (),
+        };
+        let js_resp = send(req).await?;
+
+        // Convert this Promise into a rust Future.
+        let json = JsFuture::from(js_resp.json()?).await?;
+
+        let resp = json.into_serde::<NoResultResponse>()?;
+
+        resp.result()
     }
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(untagged)]
-pub enum Response<T> {
-    Ok(Success<T>),
-    Err(Failure),
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Success<T> {
+pub struct ExpectResultResponse<T>
+where
+    T: Clone,
+{
     pub result: Option<T>,
     pub success: bool,
+    pub errors: Vec<Error>,
     pub messages: Vec<String>,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct Failure {
-    pub success: bool,
-    pub errors: Vec<Error>,
+impl<T> ExpectResultResponse<T>
+where
+    T: Clone,
+{
+    pub fn result(&self) -> Result<T, error::Error> {
+        if self.errors.len() > 0 {
+            Err(error::Error::from(self.errors[0].clone()))
+        } else {
+            match &self.result {
+                Some(r) => Ok(r.clone()),
+                None => Err(error::Error::KvNoResult),
+            }
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
+pub struct NoResultResponse {
+    pub success: bool,
+    pub errors: Vec<Error>,
+    pub messages: Vec<String>,
+}
+
+impl NoResultResponse {
+    pub fn result(&self) -> Result<(), error::Error> {
+        if self.errors.len() > 0 {
+            Err(error::Error::from(self.errors[0].clone()))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, Debug)]
 pub struct Error {
     pub code: u16,
     pub message: String,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "kv error, code: {}, message: {}",
+            self.code, self.message
+        )
+    }
+}
+
+#[derive(Serialize, Debug)]
+struct CreateNamespaceBody {
+    title: String,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct CreateNamespaceResult {
+    pub id: String,
+    title: String,
+    supports_url_encoding: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

@@ -19,13 +19,25 @@ impl LotteryConfig {
         return "lotteryConfig".to_string();
     }
 
-    pub fn commence(&self) -> Self {
+    pub fn commence(&self, new_data_namespace: String) -> Self {
         let jackpot = generate_random_emoji();
         Self {
             has_winner: false,
             active: true,
             jackpot: jackpot.to_string(),
             season: self.season + 1,
+            retry_in_hrs: self.retry_in_hrs,
+            config_kv_namespace: self.config_kv_namespace.clone(),
+            data_kv_namespace: new_data_namespace,
+        }
+    }
+
+    pub fn end(&self) -> Self {
+        Self {
+            has_winner: false,
+            active: false,
+            jackpot: self.jackpot.clone(),
+            season: self.season,
             retry_in_hrs: self.retry_in_hrs,
             config_kv_namespace: self.config_kv_namespace.clone(),
             data_kv_namespace: self.data_kv_namespace.clone(),
